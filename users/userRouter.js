@@ -1,10 +1,14 @@
 const express = require("express");
 const bcrypt = require("bcryptjs");
 const router = express.Router();
-const Users = require("./userModel.js");
+const session = require("express-session");
 
+const Users = require("./userModel.js");
+const validator = require("../auth/restrictedMidWare.js");
+
+// console.log("v", validator)
 //add validateUser, 
-router.get("/users", validateUser, (req, res) => {
+router.get("/users", validator, (req, res) => {
     Users.getUsers()
         .then(users => {
             res.status(200).json(users)
@@ -16,9 +20,9 @@ router.post("/register", (req, res) => {
     let hashedPword = bcrypt.hashSync(password, 12)
 
     Users.add({username, password: hashedPword})
-        .then(user => [
+        .then(user => {
             res.status(201).json(user)
-        ])
+        })
         .catch(err => {
             res.status(500).json(err)
         })
@@ -26,11 +30,12 @@ router.post("/register", (req, res) => {
 
 router.post("/login", (req, res) => {
     let { username, password } = req.body;
-    console.log("req.body", req.body )
     Users.findBy({ username })
         .first()
         .then(user => {
             if(user && bcrypt.compareSync(password, user.password)) {
+                console.log(req.session.user)
+                req.session.user = user;
                 res.status(200).json({ message: `Welcome ${username}!` })
             } 
             else {
@@ -38,7 +43,7 @@ router.post("/login", (req, res) => {
             }
         })
         .catch(err => {
-            res.status(500).json(error)
+            res.status(500).json({ message: `Could not login: ${err}` })
         })
 })
 
